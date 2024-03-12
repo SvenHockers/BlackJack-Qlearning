@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class QLearner {
 
@@ -7,12 +8,6 @@ public class QLearner {
         BlackJackEnv game = new BlackJackEnv(BlackJackEnv.NONE);
 		//Init your QTable
 		ArrayList<float[]> QTable = new ArrayList<float[]>(); // matrix form ?
-        float[] state = new float[1];
-        float[] action = new float[1]; // suppose the first play should be to hit by default..
-        float[] Q = new float[1];
-        QTable.add(state); // finish initializing the Q-table
-        QTable.add(action);
-        QTable.add(Q);
 
 		//Variables to measure and report average performance
 		double totalReward = 0.0;
@@ -31,48 +26,53 @@ public class QLearner {
 
     private static double playOneGame(BlackJackEnv game, ArrayList<float[]> QTable) {
         boolean canPlay; // defaults to false
-        int autoIter = 0; // this is for the Q table idx ?
+        boolean exploration = true; // random moves until we get enough data
+        int iteration = 0; // this is for the Q table idx ?
+        int action; // action for the game
+
+        float[] row = new float[4]; // row of Q table
+        float p_state; // containing the value of player and dealer
+        float d_state;
+        float q_action; // action per given state
+        float q_val; // Q value given state (0 until update)
 
         ArrayList<String> gamestate;
         gamestate = game.reset(); // starts the game
 
-        while (!canPlay) {
-            // we only get control when our cards VALUE REACHES 12 !!!!!
-            List<String> playerState = game.getPlayerCards(gamestate);
-            List<String> dealerState = game.getDealerCards(gamestate);
-
-            int playerSum = 0;
-            int dealerSum = 0;
-
-            for (String s : playerState) {
-                int cardVal = game.valueOf(s);
-                playerSum += cardVal;
-            }
-
-            for (String s : dealerState) {
-                int cardVal = game.valueOf(s);
-                dealerSum += cardVal;
-            }
-
-            if (playerSum >= 12) {
-                canPlay = true; // now we can play
-            }
+        // now we make random moves while exploration is true
+        if (exploration) {
+            Random random = new Random();
+            action = random.nextInt(2);
         }
 
+        // get this in a while loop
+        gamestate = game.step(action);
 
+        List<String> playerCards = BlackJackEnv.getPlayerCards(gamestate);
+        int sumOfPlayerCards = BlackJackEnv.totalValue(playerCards);
+        List<String> dealerCards = BlackJackEnv.getDealerCards(gamestate);
+        int sumOfDealerCards = BlackJackEnv.totalValue(dealerCards);
 
+        int reward = Integer.parseInt(gamestate.get(1)); // get the reward
 
+        // now we update Q table
+        p_state = (float) sumOfPlayerCards;
+        d_state = (float) sumOfDealerCards;
+        q_action = (float) action;
+        q_val = (float) reward;
 
-        float[] QTableState = QTable.get(0);
-        QTableState[0] = playerState;
-        QTableState[1] = dealerState;
+        row[0] = p_state;
+        row[1] = d_state;
+        row[2] = q_action;
+        row[3] = q_val;
 
-        float[] QTableAction =
+        QTable.add(row);
 
     	You will probably require a loop
     	You will need to compute/select/find/fetch s,a,s' and r
     	Then update the right values in the QTable
     	...
+
     	// Don't forget to return the outcome/reward of the game
         return Double.parseDouble(finalGameState.get(1));
     }
