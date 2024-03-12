@@ -25,25 +25,38 @@ public class QLearner {
     }
 
     private static double playOneGame(BlackJackEnv game, ArrayList<float[]> QTable) {
-        boolean GameOver; // defaults to false
+        boolean GameOver = false; // defaults to false
         boolean exploration = true; // random moves until we get enough data
         int iteration = 0; // this is for the Q table idx ?
-        int action; // action for the game
+        int action = 0; // action for the game
 
         float[] row = new float[4]; // row of Q table
-        float p_state; // containing the value of player and dealer
-        float d_state;
+        float p_state = 0; // containing the value of player and dealer
+        float d_state = 0;
         float q_action; // action per given state
         float q_val; // Q value given state (0 until update)
-
+        
         ArrayList<String> gamestate;
+        ArrayList<String> finalGameState;
         gamestate = game.reset(); // starts the game
+
+        finalGameState = gamestate; // This should be resolved not good practise
 
         // get this in a while loop
         while (!GameOver) {
             if (exploration) {
                 Random random = new Random();
                 action = random.nextInt(2);
+            } else {
+                float maxQ = Float.NEGATIVE_INFINITY;
+                for (float[] Qrow : QTable) {
+                    if (Qrow[0] == p_state && Qrow[1] == d_state) {
+                        if (Qrow[3] > maxQ) {
+                            maxQ = Qrow[3];
+                            action = (int) Qrow[2];
+                        }
+                    }
+                }
             }
             gamestate = game.step(action);
 
@@ -66,8 +79,9 @@ public class QLearner {
             row[3] = q_val;
 
             QTable.add(row);
-            if (gamestate.get(0)) {
+            if (Boolean.parseBoolean(gamestate.get(0))) {
                 GameOver = true;
+                finalGameState = gamestate;
             }
         }
 
