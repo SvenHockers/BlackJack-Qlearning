@@ -25,7 +25,7 @@ public class QLearner {
     }
 
     private static double playOneGame(BlackJackEnv game, ArrayList<float[]> QTable) {
-        boolean canPlay; // defaults to false
+        boolean GameOver; // defaults to false
         boolean exploration = true; // random moves until we get enough data
         int iteration = 0; // this is for the Q table idx ?
         int action; // action for the game
@@ -39,39 +39,37 @@ public class QLearner {
         ArrayList<String> gamestate;
         gamestate = game.reset(); // starts the game
 
-        // now we make random moves while exploration is true
-        if (exploration) {
-            Random random = new Random();
-            action = random.nextInt(2);
-        }
-
         // get this in a while loop
-        gamestate = game.step(action);
+        while (!GameOver) {
+            if (exploration) {
+                Random random = new Random();
+                action = random.nextInt(2);
+            }
+            gamestate = game.step(action);
 
-        List<String> playerCards = BlackJackEnv.getPlayerCards(gamestate);
-        int sumOfPlayerCards = BlackJackEnv.totalValue(playerCards);
-        List<String> dealerCards = BlackJackEnv.getDealerCards(gamestate);
-        int sumOfDealerCards = BlackJackEnv.totalValue(dealerCards);
+            List<String> playerCards = BlackJackEnv.getPlayerCards(gamestate);
+            int sumOfPlayerCards = BlackJackEnv.totalValue(playerCards);
+            List<String> dealerCards = BlackJackEnv.getDealerCards(gamestate);
+            int sumOfDealerCards = BlackJackEnv.totalValue(dealerCards);
 
-        int reward = Integer.parseInt(gamestate.get(1)); // get the reward
+            int reward = Integer.parseInt(gamestate.get(1)); // get the reward
 
-        // now we update Q table
-        p_state = (float) sumOfPlayerCards;
-        d_state = (float) sumOfDealerCards;
-        q_action = (float) action;
-        q_val = (float) reward;
+            // now we update Q table
+            p_state = (float) sumOfPlayerCards;
+            d_state = (float) sumOfDealerCards;
+            q_action = (float) action;
+            q_val = (float) reward;
 
-        row[0] = p_state;
-        row[1] = d_state;
-        row[2] = q_action;
-        row[3] = q_val;
+            row[0] = p_state;
+            row[1] = d_state;
+            row[2] = q_action;
+            row[3] = q_val;
 
-        QTable.add(row);
-
-    	You will probably require a loop
-    	You will need to compute/select/find/fetch s,a,s' and r
-    	Then update the right values in the QTable
-    	...
+            QTable.add(row);
+            if (gamestate.get(0)) {
+                GameOver = true;
+            }
+        }
 
     	// Don't forget to return the outcome/reward of the game
         return Double.parseDouble(finalGameState.get(1));
