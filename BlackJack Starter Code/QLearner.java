@@ -59,7 +59,7 @@ public class QLearner {
             List<String> dealerCards = BlackJackEnv.getDealerCards(gamestate);
             int sumOfDealerCards = BlackJackEnv.totalValue(dealerCards);
 
-            int reward = Integer.parseInt(gamestate.get(1)); // get the reward
+            int reward = Integer.parseInt(gamestate.get(0)); // get the reward
 
             float[] row = new float[4];
 
@@ -80,13 +80,13 @@ public class QLearner {
 
             iteration ++; // iteration increment for idx of Q val
 
-            if (Boolean.parseBoolean(gamestate.getFirst())) { // check if game has ended
+            if (Boolean.parseBoolean(gamestate.get(0))) { // check if game has ended
                 GameOver = true;
                 finalGameState = gamestate;
 
                 Collections.reverse(indexes); // get idx in correct order for discounting
 
-                float qValNoDiscount = QTable.get(indexes.getFirst())[3]; // this just gets the Q value
+                float qValNoDiscount = QTable.get(indexes.get(0))[3]; // this just gets the Q value
 
                 // discount the Q values with gamma discount rate
 
