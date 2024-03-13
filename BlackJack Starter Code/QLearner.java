@@ -1,63 +1,57 @@
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
 public class QLearner {
 
+    private static final float ALPHA = 0.1f;
+
     public static void main(String[] args) {
         BlackJackEnv game = new BlackJackEnv(BlackJackEnv.NONE);
-		//Init your QTable
-		ArrayList<float[]> QTable = new ArrayList<float[]>(); // matrix form ?
+        //Init your QTable
+        ArrayList<float[]> QTable = new ArrayList<float[]>(); // matrix form ?
 
-		//Variables to measure and report average performance
-		double totalReward = 0.0;
+        //Variables to measure and report average performance
+        double totalReward = 0.0;
         int numberOfGames = 0;
         while (notDone()) {
-        	// Make sure the playOneGame method returns the end-reward of the game
+            // Make sure the playOneGame method returns the end-reward of the game
             totalReward += playOneGame(game,QTable);
             numberOfGames++;
             if ((numberOfGames % 10000) == 0)
-                System.out.println("Avg reward after " + numberOfGames + " games = " + 
-                						(totalReward / ++numberOfGames));
+                System.out.println("Avg reward after " + numberOfGames + " games = " +
+                        (totalReward / ++numberOfGames));
         }
         // Show the learned QTable
         outputQTable(QTable);
     }
 
+    private static int iteration = 0; // this is for the Q table idx ?
+
     private static double playOneGame(BlackJackEnv game, ArrayList<float[]> QTable) {
         boolean GameOver = false; // defaults to false
         boolean exploration = true; // random moves until we get enough data
-        int iteration = 0; // this is for the Q table idx ?
         int action = 0; // action for the game
+        float gamma = 0.9f; // discount factor for the reward, close to 1
+        List<Integer> indexes = new ArrayList<>(); // index to modify Q value
 
-        float[] row = new float[4]; // row of Q table
-        float p_state = 0; // containing the value of player and dealer
-        float d_state = 0;
+        float p_state; // containing the value of player and dealer
+        float d_state;
         float q_action; // action per given state
         float q_val; // Q value given state (0 until update)
-        
-        ArrayList<String> gamestate;
-        ArrayList<String> finalGameState;
-        gamestate = game.reset(); // starts the game
 
-        finalGameState = gamestate; // This should be resolved not good practise
+        ArrayList<String> gamestate;
+        gamestate = game.reset(); // starts the game
+        List<String> finalGameState = gamestate;
 
         // get this in a while loop
         while (!GameOver) {
             if (exploration) {
                 Random random = new Random();
                 action = random.nextInt(2);
-            } else {
-                float maxQ = Float.NEGATIVE_INFINITY;
-                for (float[] Qrow : QTable) {
-                    if (Qrow[0] == p_state && Qrow[1] == d_state) {
-                        if (Qrow[3] > maxQ) {
-                            maxQ = Qrow[3];
-                            action = (int) Qrow[2];
-                        }
-                    }
-                }
             }
+
             gamestate = game.step(action);
 
             List<String> playerCards = BlackJackEnv.getPlayerCards(gamestate);
@@ -66,6 +60,8 @@ public class QLearner {
             int sumOfDealerCards = BlackJackEnv.totalValue(dealerCards);
 
             int reward = Integer.parseInt(gamestate.get(1)); // get the reward
+
+            float[] row = new float[4];
 
             // now we update Q table
             p_state = (float) sumOfPlayerCards;
@@ -79,34 +75,81 @@ public class QLearner {
             row[3] = q_val;
 
             QTable.add(row);
-            if (Boolean.parseBoolean(gamestate.get(0))) {
+
+            indexes.add(iteration); // this makes a list for the discount factor to be applied
+
+            iteration ++; // iteration increment for idx of Q val
+
+            if (Boolean.parseBoolean(gamestate.getFirst())) { // check if game has ended
                 GameOver = true;
                 finalGameState = gamestate;
+
+                Collections.reverse(indexes); // get idx in correct order for discounting
+
+                float qValNoDiscount = QTable.get(indexes.getFirst())[3]; // this just gets the Q value
+
+                // discount the Q values with gamma discount rate
+
+                int loopIdx = 0;
+
+                for (int x : indexes) {
+                    float oldQValue = QTable.get(x)[3];
+                    float newQValue = oldQValue + ALPHA * (reward + gamma * getMaxQValue(QTable, p_state, d_state) - oldQValue);
+                    QTable.get(x)[3] = newQValue;
+                }
             }
         }
 
-    	// Don't forget to return the outcome/reward of the game
         return Double.parseDouble(finalGameState.get(1));
+
     }
 
-	// Example stopping condition: fixed number of games
+    private static float getMaxQValue(ArrayList<float[]> QTable, float p_state, float d_state) {
+        float maxQValue = Float.NEGATIVE_INFINITY;
+
+        for (float[] row : QTable) {
+            if (row[0] == p_state && row[1] == d_state) {
+                if (row[3] > maxQValue) {
+                    maxQValue = row[3];
+                }
+            }
+        }
+
+        return maxQValue;
+    }
+
+    private static int getBestAction(ArrayList<float[]> QTable, float p_state, float d_state) {
+        int bestAction = 0;
+        float maxQValue = Float.NEGATIVE_INFINITY;
+
+        for (float[] row : QTable) {
+            if (row[0] == p_state && row[1] == d_state) {
+                if (row[3] > maxQValue) {
+                    maxQValue = row[3];
+                    bestAction = (int) row[2];
+                }
+            }
+        }
+
+        return bestAction;
+    }
+
+    // Example stopping condition: fixed number of games
     private static int episodeCounter = 0;
     private static boolean notDone() {
         episodeCounter++;
-        return (episodeCounter <= 1000000);
+        return (episodeCounter <= 1000);
     }
 
     private static void outputQTable(ArrayList<float[]> QTable) {
-        float[] s = QTable.get(0);
-        float[] a = QTable.get(1);
-        float[] q = QTable.get(2);
-        float playerS = s[0];
-        float dealerS = s[1];
-        float action = a[0];
-        float qval = q[0];
-
         System.out.println("PLAYER VALUE | DEALER VALUE | ACTION | Q VALUE");
-        System.out.println("    " + playerS + "    " + dealerS + "    " + action + "    " + qval);
-        System.out.println("----------------------------------------------");
+        for (float[] row : QTable) {
+            float pState = row[0];
+            float dState = row[1];
+            float action = row[2];
+            float qval = row[3];
+            System.out.println("    " + pState + "          " + dState + "         " + action + "     " + qval);
+        }
+        System.out.println("PLAYER VALUE | DEALER VALUE | ACTION | Q VALUE");
     }
 }
